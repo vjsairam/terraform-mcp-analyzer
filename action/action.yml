@@ -1,0 +1,69 @@
+name: Terraform MCP Analyzer
+description: Run terraform-mcp-analyzer against a repository using a rules pack and output SARIF
+inputs:
+  pack_url:
+    description: URL to rules pack (or path via pack_path)
+    required: false
+  pack_path:
+    description: Local path to rules pack
+    required: false
+  mode:
+    description: advisory|enforce
+    required: false
+    default: advisory
+  format:
+    description: Output format
+    required: false
+    default: sarif
+  pubkey_path:
+    description: Path to Ed25519 public key (PEM) for enforce mode
+    required: false
+  analyzer_version:
+    description: Release version to download (e.g., v0.1.0); if omitted, attempts local build
+    required: false
+runs:
+  using: composite
+  steps:
+    - name: Download terraform-mcp-analyzer
+      shell: bash
+      run: |
+        set -euo pipefail
+        ver="${{ inputs.analyzer_version }}"
+        if [ -n "$ver" ]; then
+          os=$(uname -s | tr '[:upper:]' '[:lower:]')
+          arch=$(uname -m)
+          case "$arch" in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; esac
+          url="https://github.com/your-org/terraform-mcp-analyzer/releases/download/$ver/terraform-mcp-analyzer_${ver}_${os}_${arch}"
+          echo "Fetching $url"
+          curl -fsSL "$url" -o ./terraform-mcp-analyzer
+          chmod +x ./terraform-mcp-analyzer
+        else
+          echo "Building terraform-mcp-analyzer from source (no analyzer_version provided)"
+          go build -o ./terraform-mcp-analyzer ./cmd/terraform-mcp-analyzer || true
+        fi
+    - name: Resolve pack path
+      id: pack
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -n "${{ inputs.pack_path }}" ]; then echo "path=${{ inputs.pack_path }}" >> $GITHUB_OUTPUT; exit 0; fi
+        if [ -n "${{ inputs.pack_url }}" ]; then echo "path=${{ inputs.pack_url }}" >> $GITHUB_OUTPUT; exit 0; fi
+        echo "path=rules_samples/aws_iam_v5_to_v6.jsonl" >> $GITHUB_OUTPUT
+    - name: Run terraform-mcp-analyzer
+      shell: bash
+      run: |
+        set -euo pipefail
+        mode="${{ inputs.mode }}"; fmt="${{ inputs.format }}"; pack="${{ steps.pack.outputs.path }}"
+        args=(scan --pack "$pack" --format "$fmt")
+        if [ "$mode" = "enforce" ]; then
+          if [ -z "${{ inputs.pubkey_path }}" ]; then echo "enforce mode requires pubkey_path" >&2; exit 2; fi
+          args+=(--pubkey "${{ inputs.pubkey_path }}" --enforce)
+        fi
+        ./terraform-mcp-analyzer "${args[@]}" > terraform-mcp-analyzer.out || true
+        # Normalize artifact name by format
+        if [ "$fmt" = "sarif" ]; then mv terraform-mcp-analyzer.out terraform-mcp-analyzer.sarif; else mv terraform-mcp-analyzer.out terraform-mcp-analyzer.${fmt}; fi
+    - name: Upload SARIF
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-mcp-analyzer-sarif
+        path: terraform-mcp-analyzer.sarif
