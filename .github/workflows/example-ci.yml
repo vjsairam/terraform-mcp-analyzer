@@ -1,0 +1,34 @@
+name: terraform-mcp-analyzer-example
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  terraform-mcp-analyzer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Analyzer Action (advisory)
+        uses: ./action
+        with:
+          analyzer_version: v0.1.0
+          pack_path: rules/stable/aws_iam_v5_to_v6.jsonl
+          mode: advisory
+          format: sarif
+      - name: Rename SARIF
+        run: |
+          mv terraform-mcp-analyzer.sarif terraform-mcp-analyzer.sarif || true
+    - name: Upload SARIF to code scanning
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: terraform-mcp-analyzer.sarif
+    - name: Upload SARIF
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-mcp-analyzer-sarif
+        path: terraform-mcp-analyzer.sarif

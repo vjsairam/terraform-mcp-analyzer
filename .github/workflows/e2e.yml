@@ -1,0 +1,60 @@
+name: e2e
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+      - name: Build terraform-mcp-analyzer
+        run: go build -o ./bin/terraform-mcp-analyzer ./cmd/terraform-mcp-analyzer
+
+      - name: JSON scan should yield 7 findings (orig config)
+        run: |
+          ./bin/terraform-mcp-analyzer scan --pack rules_samples/aws_iam_v5_to_v6.jsonl --format json examples/terraform/iam-v5-to-v6-orig > out.json
+          jq -e '.findings | length == 7' out.json
+
+      - name: Markdown scan should include headings and suggestions (orig config)
+        run: |
+          ./bin/terraform-mcp-analyzer scan --pack rules_samples/aws_iam_v5_to_v6.jsonl --format md examples/terraform/iam-v5-to-v6-orig > out.md
+          grep -q "## Terraform MCP Analyzer Findings" out.md || true
+          grep -q "Docs:" out.md
+
+      - name: SARIF scan should contain 7 results (orig config)
+        run: |
+          ./bin/terraform-mcp-analyzer scan --pack rules_samples/aws_iam_v5_to_v6.jsonl --format sarif examples/terraform/iam-v5-to-v6-orig > out.sarif
+          jq -e '.runs[0].results | length == 7' out.sarif
+
+      - name: Fix mode writes patches and state plan (orig config)
+        run: |
+          ./bin/tfug scan --pack rules_samples/aws_iam_v5_to_v6.jsonl --format md --fix --fix-out examples/terraform/iam-v5-to-v6-orig/.tfug/plan examples/terraform/iam-v5-to-v6-orig
+          test -f examples/terraform/iam-v5-to-v6-orig/.tfug/plan/patches/main.diff
+          test -f examples/terraform/iam-v5-to-v6-orig/.tfug/plan/state.txt
+
+      - name: Enforce mode with offline signature verification exits 2 (orig config)
+        run: |
+          set +e
+          ./bin/terraform-mcp-analyzer scan --pack rules_samples/aws_iam_v5_to_v6.jsonl \
+            --pubkey testdata/keys/tfug_test_pubkey.pem \
+            --enforce --format table examples/terraform/iam-v5-to-v6-orig
+          code=$?
+          echo "Exit code: $code"
+          test $code -eq 2
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-mcp-analyzer-e2e-artifacts
+          path: |
+            out.json
+            out.md
+            out.sarif
+            examples/terraform/iam-v5-to-v6-orig/.terraform-mcp-analyzer/**
