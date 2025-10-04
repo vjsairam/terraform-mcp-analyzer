@@ -34,3 +34,8 @@ Project_Knowledge.txt
 Project_Instructions.txt
 AGENTS.md
 .claude/
+
+# Large scraped documentation (optional)
+docs/terraform/modules/
+docs/terraform/providers/
+docs/terraform/*.alias
