@@ -1,0 +1,33 @@
+{{- /* Module Rules Template */}}
+{{- /* Metadata header */}}
+{"_meta":{"id":"{{.PackID}}","version":"{{.Version}}","created_at":"{{.CreatedAt}}","channel":"{{.Channel}}","sources":{{.Sources}},"builder":"{{.Builder}}"}}
+
+{{- /* Module structure changes */}}
+{{- range .ModuleChanges}}
+{"id":"{{$.RulePrefix}}.{{.ModuleName}}.{{$.FromVersion}}_to_{{$.ToVersion}}.{{.ChangeType}}.{{.Sequence}}","ecosystem":"terraform","module":"{{.ModuleSource}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"{{.ChangeType}}","payload":{"{{if eq .ChangeType "module_merged"}}from":"{{.From}}","to":"{{.To}}"{{else if eq .ChangeType "module_split"}}old_module":"{{.OldModule}}","new_modules":{{.NewModules}}{{end}}"{{if .Note}},"note":"{{.Note}}"{{end}}}{{if .Fix}},"fix":{"codemod":"{{.Fix.Type}}","args":{{.Fix.Args}}}{{end}},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"breaking","confidence":"{{.Confidence}}"}}
+{{- end}}
+
+{{- /* Variable renames */}}
+{{- range .VariableRenames}}
+{"id":"{{$.RulePrefix}}.{{.ModuleName}}.{{$.FromVersion}}_to_{{$.ToVersion}}.var_renamed.{{.Sequence}}","ecosystem":"terraform","module":"{{.ModuleSource}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"var_renamed","payload":{"from":"{{.OldName}}","to":"{{.NewName}}"{{if .TypeChange}},"type_change":"{{.TypeChange}}"{{end}}},"fix":{"codemod":"rename_var","args":{"old_name":"{{.OldName}}","new_name":"{{.NewName}}"}},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"breaking","confidence":"{{.Confidence}}"}}
+{{- end}}
+
+{{- /* Variable removals */}}
+{{- range .VariableRemovals}}
+{"id":"{{$.RulePrefix}}.{{.ModuleName}}.{{$.FromVersion}}_to_{{$.ToVersion}}.var_removed.{{.Sequence}}","ecosystem":"terraform","module":"{{.ModuleSource}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"var_removed","payload":{"name":"{{.Name}}"{{if .Replacement}},"replacement":"{{.Replacement}}"{{end}}{{if .Reason}},"reason":"{{.Reason}}"{{end}}},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"breaking","confidence":"{{.Confidence}}"}}
+{{- end}}
+
+{{- /* Output changes */}}
+{{- range .OutputChanges}}
+{"id":"{{$.RulePrefix}}.{{.ModuleName}}.{{$.FromVersion}}_to_{{$.ToVersion}}.output_{{.ChangeType}}.{{.Sequence}}","ecosystem":"terraform","module":"{{.ModuleSource}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"output_{{.ChangeType}}","payload":{"name":"{{.Name}}"{{if .NewName}},"new_name":"{{.NewName}}"{{end}}{{if .TypeChange}},"type_change":"{{.TypeChange}}"{{end}}{{if .Note}},"note":"{{.Note}}"{{end}}},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"{{.Severity}}","confidence":"{{.Confidence}}"}}
+{{- end}}
+
+{{- /* Behavior changes */}}
+{{- range .BehaviorChanges}}
+{"id":"{{$.RulePrefix}}.{{.ModuleName}}.{{$.FromVersion}}_to_{{$.ToVersion}}.behavior.{{.Sequence}}","ecosystem":"terraform","module":"{{.ModuleSource}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"behavior_change","payload":{"change":"{{.Change}}"{{if .Variable}},"variable":"{{.Variable}}"{{end}}{{if .DefaultChange}},"old_default":"{{.DefaultChange.Old}}","new_default":"{{.DefaultChange.New}}"{{end}}},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"{{.Severity}}","confidence":"{{.Confidence}}"}}
+{{- end}}
+
+{{- /* Resource changes (for modules that create resources) */}}
+{{- range .ResourceChanges}}
+{"id":"{{$.RulePrefix}}.{{.ModuleName}}.{{$.FromVersion}}_to_{{$.ToVersion}}.resource_{{.ChangeType}}.{{.Sequence}}","ecosystem":"terraform","module":"{{.ModuleSource}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"resource_{{.ChangeType}}","payload":{"resource_type":"{{.ResourceType}}"{{if .OldAddress}},"old_address":"{{.OldAddress}}"{{end}}{{if .NewAddress}},"new_address":"{{.NewAddress}}"{{end}}{{if .Note}},"note":"{{.Note}}"{{end}}}{{if .StateOps}},"state":{"actions":[{{range $i, $action := .StateOps}}{{if $i}},{{end}}{"op":"{{$action.Op}}","addr":"{{$action.Addr}}"{{if $action.Dest}},"dest":"{{$action.Dest}}"{{end}}}{{end}}]}{{end}},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"breaking","confidence":"{{.Confidence}}"}}
+{{- end}}

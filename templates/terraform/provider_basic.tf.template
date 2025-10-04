@@ -1,0 +1,64 @@
+# Basic Provider Test Template
+# Usage: Replace {{.Provider}}, {{.FromVersion}}, {{.ToVersion}} placeholders
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    {{.Provider}} = {
+      source  = "{{.ProviderSource}}"
+      version = "{{.FromVersionConstraint}}"  # This should trigger upgrade rules
+    }
+  }
+}
+
+provider "{{.Provider}}" {
+  {{- range .ProviderConfig}}
+  {{.Key}} = {{.Value}}
+  {{- end}}
+}
+
+{{- range .Resources}}
+# {{.Comment}}
+resource "{{.Type}}" "{{.Name}}" {
+  {{- range .Arguments}}
+  {{.Name}} = {{.Value}}
+  {{- end}}
+  
+  {{- if .DeprecatedArgs}}
+  # These arguments changed in {{$.ToVersion}}
+  {{- range .DeprecatedArgs}}
+  {{.Name}} = {{.Value}}  # {{.ChangeType}}: {{.Note}}
+  {{- end}}
+  {{- end}}
+}
+{{- end}}
+
+{{- range .DataSources}}
+data "{{.Type}}" "{{.Name}}" {
+  {{- range .Arguments}}
+  {{.Name}} = {{.Value}}
+  {{- end}}
+}
+{{- end}}
+
+{{- if .Locals}}
+locals {
+  {{- range .Locals}}
+  {{.Name}} = {{.Value}}
+  {{- end}}
+}
+{{- end}}
+
+{{- if .Variables}}
+variable "location" {
+  description = "Azure region"
+  type        = string
+  default     = "West Europe"
+}
+
+variable "resource_group_name" {
+  description = "Resource group name"
+  type        = string
+  default     = "test-rg"
+}
+{{- end}}
