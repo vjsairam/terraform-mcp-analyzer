@@ -1,0 +1,26 @@
+{{- /* Provider Rules Template */}}
+{{- /* Metadata header */}}
+{"_meta":{"id":"{{.PackID}}","version":"{{.Version}}","created_at":"{{.CreatedAt}}","channel":"{{.Channel}}","sources":{{.Sources}},"builder":"{{.Builder}}"}}
+
+{{- /* Provider minimum version rule */}}
+{"id":"{{.RulePrefix}}.provider.{{.FromVersion}}_to_{{.ToVersion}}.min_version.001","ecosystem":"terraform","provider":"{{.ProviderName}}","from":"{{.FromConstraint}}","to":"{{.ToConstraint}}","type":"provider_min_version","payload":{"min":"{{.MinVersion}}"},"docs":[{"title":"{{.ProviderName}} {{.ToVersion}} Upgrade Guide","url":"{{.UpgradeGuideURL}}","excerpt":"{{.ProviderName}} {{.ToVersion}} introduces breaking changes."}],"meta":{"severity":"breaking","confidence":"high"}}
+
+{{- /* Resource rename rules */}}
+{{- range .ResourceRenames}}
+{"id":"{{$.RulePrefix}}.{{.ResourceType}}.{{$.FromVersion}}_to_{{$.ToVersion}}.resource_renamed.{{.Sequence}}","ecosystem":"terraform","provider":"{{$.ProviderName}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"resource_renamed","payload":{"from":"{{.OldName}}","to":"{{.NewName}}"{{if .Condition}},"condition":"{{.Condition}}"{{end}}},"fix":{"codemod":"rename_resource","args":{"old_type":"{{.OldName}}","new_type":"{{.NewName}}"}},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"breaking","confidence":"{{.Confidence}}"}}
+{{- end}}
+
+{{- /* Argument structure changes */}}
+{{- range .ArgumentChanges}}
+{"id":"{{$.RulePrefix}}.{{.ResourceType}}.{{$.FromVersion}}_to_{{$.ToVersion}}.argument_{{.ChangeType}}.{{.Sequence}}","ecosystem":"terraform","provider":"{{$.ProviderName}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"argument_{{.ChangeType}}","payload":{"resource":"{{.ResourceType}}","argument":"{{.ArgumentName}}"{{if .NewName}},"new_name":"{{.NewName}}"{{end}}{{if .Note}},"note":"{{.Note}}"{{end}}}{{if .Fix}},"fix":{"codemod":"{{.Fix.Type}}","args":{{.Fix.Args}}}{{end}},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"{{.Severity}}","confidence":"{{.Confidence}}"}}
+{{- end}}
+
+{{- /* Behavior changes */}}
+{{- range .BehaviorChanges}}
+{"id":"{{$.RulePrefix}}.{{.Component}}.{{$.FromVersion}}_to_{{$.ToVersion}}.behavior.{{.Sequence}}","ecosystem":"terraform","provider":"{{$.ProviderName}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"behavior_change","payload":{"{{if .Resource}}resource":"{{.Resource}}",{{end}}"change":"{{.Change}}"{{if .Impact}},"impact":"{{.Impact}}"{{end}}},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"{{.Severity}}","confidence":"{{.Confidence}}"}}
+{{- end}}
+
+{{- /* State operations */}}
+{{- range .StateOperations}}
+{"id":"{{$.RulePrefix}}.{{.Component}}.{{$.FromVersion}}_to_{{$.ToVersion}}.state_move.{{.Sequence}}","ecosystem":"terraform","provider":"{{$.ProviderName}}","from":"{{$.FromConstraint}}","to":"{{$.ToConstraint}}","type":"state_move","state":{"actions":[{{range $i, $action := .Actions}}{{if $i}},{{end}}{"op":"{{$action.Op}}","addr":"{{$action.Addr}}"{{if $action.Dest}},"dest":"{{$action.Dest}}"{{end}}{{if $action.ID}},"id":"{{$action.ID}}"{{end}}}{{end}}]},"docs":[{"title":"{{.Title}}","url":"{{.DocsURL}}","excerpt":"{{.Excerpt}}"}],"meta":{"severity":"breaking","confidence":"{{.Confidence}}"}}
+{{- end}}

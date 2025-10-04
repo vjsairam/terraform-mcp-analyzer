@@ -1,0 +1,12 @@
+{
+  "channel": "stable",
+  "updated_at": "2025-09-14T15:32:40Z",
+  "packs": [
+    {
+      "name": "aws_iam_v5_to_v6",
+      "file": "aws_iam_v5_to_v6.jsonl",
+      "sha256": "5f4164539794744f00654b057dcd47df751d741d704315fb955ceb0781d87b03",
+      "version": "2025.09.1"
+    }
+  ]
+}

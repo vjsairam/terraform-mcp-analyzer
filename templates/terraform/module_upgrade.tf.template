@@ -1,0 +1,54 @@
+# Module Upgrade Test Template
+# Usage: Test module version upgrades and variable changes
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    {{.Provider}} = {
+      source  = "{{.ProviderSource}}"
+      version = "{{.ProviderVersion}}"
+    }
+  }
+}
+
+{{- range .Modules}}
+module "{{.Name}}" {
+  source  = "{{.Source}}"
+  version = "{{.FromVersion}}"  # Old version to trigger upgrade rules
+  
+  {{- range .Variables}}
+  {{.Name}} = {{.Value}}
+  {{- end}}
+  
+  {{- if .DeprecatedVariables}}
+  # These variables changed in {{$.ToVersion}}
+  {{- range .DeprecatedVariables}}
+  {{.Name}} = {{.Value}}  # {{.ChangeType}}: {{.Note}}
+  {{- end}}
+  {{- end}}
+  
+  {{- if .RemovedVariables}}
+  # These variables were removed in {{$.ToVersion}}
+  {{- range .RemovedVariables}}
+  {{.Name}} = {{.Value}}  # REMOVED: {{.Replacement}}
+  {{- end}}
+  {{- end}}
+}
+{{- end}}
+
+{{- if .Outputs}}
+{{- range .Outputs}}
+output "{{.Name}}" {
+  description = "{{.Description}}"
+  value       = {{.Value}}
+}
+{{- end}}
+{{- end}}
+
+{{- if .Locals}}
+locals {
+  {{- range .Locals}}
+  {{.Name}} = {{.Value}}
+  {{- end}}
+}
+{{- end}}

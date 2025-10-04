@@ -1,0 +1,260 @@
+// {{.Provider}} Provider Test Template
+// Generated test file for {{.Provider}} provider upgrade testing
+
+package engine
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/your-org/tfug/internal/hclparse"
+	"github.com/your-org/tfug/internal/rules"
+)
+
+func Test{{.ProviderTitle}}_{{.FromVersion}}_to_{{.ToVersion}}_Detection(t *testing.T) {
+	testCases := []struct {
+		name                string
+		configDir          string
+		rulesFile          string
+		expectedFindings   int
+		expectedRuleIDs    []string
+	}{
+		{
+			name:             "basic_upgrade",
+			configDir:        "testdata/terraform/providers/{{.Provider}}/{{.FromVersion}}_to_{{.ToVersion}}",
+			rulesFile:        "testdata/rules/{{.Provider}}/{{.FromVersion}}_to_{{.ToVersion}}.jsonl",
+			expectedFindings: {{.ExpectedBasicFindings}},
+			expectedRuleIDs: []string{
+				"{{.RulePrefix}}.provider.{{.FromVersion}}_to_{{.ToVersion}}.min_version.001",
+				{{- range .ExpectedRuleIDs}}
+				"{{.}}",
+				{{- end}}
+			},
+		},
+		{{- if .HasComplexScenario}}
+		{
+			name:             "complex_scenario",
+			configDir:        "testdata/terraform/providers/{{.Provider}}/{{.FromVersion}}_to_{{.ToVersion}}/complex",
+			rulesFile:        "testdata/rules/{{.Provider}}/comprehensive.jsonl",
+			expectedFindings: {{.ExpectedComplexFindings}},
+			expectedRuleIDs: []string{
+				{{- range .ExpectedComplexRuleIDs}}
+				"{{.}}",
+				{{- end}}
+			},
+		},
+		{{- end}}
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Load rules pack
+			rules, err := rules.LoadFromFile(tc.rulesFile)
+			require.NoError(t, err)
+			assert.NotEmpty(t, rules, "Rules pack should not be empty")
+
+			// Parse Terraform configuration
+			graph, err := hclparse.ParseDir(tc.configDir)
+			require.NoError(t, err)
+			assert.NotEmpty(t, graph.Providers, "Should detect providers")
+
+			// Run rule matching
+			findings := Match(graph, rules)
+
+			// Verify findings count
+			assert.Len(t, findings, tc.expectedFindings, "Unexpected number of findings")
+
+			// Verify specific rule IDs are present
+			actualRuleIDs := make([]string, len(findings))
+			for i, f := range findings {
+				actualRuleIDs[i] = f.RuleID
+			}
+
+			for _, expectedID := range tc.expectedRuleIDs {
+				assert.Contains(t, actualRuleIDs, expectedID, "Expected rule ID not found: %s", expectedID)
+			}
+
+			// Verify findings have required fields
+			for _, finding := range findings {
+				assert.NotEmpty(t, finding.RuleID, "Finding should have rule ID")
+				assert.NotEmpty(t, finding.RuleType, "Finding should have rule type")
+				assert.NotEmpty(t, finding.Severity, "Finding should have severity")
+				assert.NotEmpty(t, finding.File, "Finding should have file")
+				assert.Greater(t, finding.Line, 0, "Finding should have line number")
+				assert.NotEmpty(t, finding.Message, "Finding should have message")
+			}
+		})
+	}
+}
+
+func Test{{.ProviderTitle}}_{{.FromVersion}}_to_{{.ToVersion}}_SpecificResources(t *testing.T) {
+	{{- range .ResourceTests}}
+	t.Run("{{.ResourceType}}_{{.TestType}}", func(t *testing.T) {
+		rules, err := rules.LoadFromFile("testdata/rules/{{$.Provider}}/{{.RulesFile}}")
+		require.NoError(t, err)
+
+		graph, err := hclparse.ParseDir("testdata/terraform/providers/{{$.Provider}}/resources/{{.ConfigDir}}")
+		require.NoError(t, err)
+
+		findings := Match(graph, rules)
+
+		// Verify specific resource findings
+		{{- range .ExpectedFindings}}
+		found := false
+		for _, f := range findings {
+			if f.RuleID == "{{.RuleID}}" {
+				assert.Equal(t, "{{.Severity}}", f.Severity)
+				assert.Contains(t, f.Message, "{{.MessageContains}}")
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "Expected finding for rule {{.RuleID}} not found")
+		{{- end}}
+	})
+	{{- end}}
+}
+
+func Test{{.ProviderTitle}}_{{.FromVersion}}_to_{{.ToVersion}}_Codemods(t *testing.T) {
+	{{- if .HasCodemods}}
+	testCases := []struct {
+		name         string
+		configDir    string
+		rulesFile    string
+		expectedDiff string
+	}{
+		{{- range .CodemodTests}}
+		{
+			name:         "{{.Name}}",
+			configDir:    "testdata/terraform/providers/{{$.Provider}}/{{.ConfigDir}}",
+			rulesFile:    "testdata/rules/{{$.Provider}}/{{.RulesFile}}",
+			expectedDiff: "testdata/golden/providers/{{$.Provider}}/patches/{{.ExpectedDiff}}",
+		},
+		{{- end}}
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Load rules and generate fixes
+			rules, err := rules.LoadFromFile(tc.rulesFile)
+			require.NoError(t, err)
+
+			graph, err := hclparse.ParseDir(tc.configDir)
+			require.NoError(t, err)
+
+			findings := Match(graph, rules)
+
+			// Filter findings that have fix codemods
+			var fixableFindings []Finding
+			for _, f := range findings {
+				if f.Fix != nil {
+					fixableFindings = append(fixableFindings, f)
+				}
+			}
+
+			assert.NotEmpty(t, fixableFindings, "Should have findings with fixes")
+
+			// TODO: Test actual codemod application and diff generation
+			// This would require implementing the codemod engine fully
+		})
+	}
+	{{- else}}
+	t.Skip("No codemods defined for {{.Provider}} {{.FromVersion}} to {{.ToVersion}}")
+	{{- end}}
+}
+
+func Test{{.ProviderTitle}}_{{.FromVersion}}_to_{{.ToVersion}}_StateOperations(t *testing.T) {
+	{{- if .HasStateOps}}
+	testCases := []struct {
+		name            string
+		configDir       string
+		rulesFile       string
+		expectedStateOps []StateOp
+	}{
+		{{- range .StateOpTests}}
+		{
+			name:      "{{.Name}}",
+			configDir: "testdata/terraform/providers/{{$.Provider}}/{{.ConfigDir}}",
+			rulesFile: "testdata/rules/{{$.Provider}}/{{.RulesFile}}",
+			expectedStateOps: []StateOp{
+				{{- range .ExpectedOps}}
+				{Op: "{{.Op}}", Addr: "{{.Addr}}"{{if .Dest}}, Dest: "{{.Dest}}"{{end}}},
+				{{- end}}
+			},
+		},
+		{{- end}}
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rules, err := rules.LoadFromFile(tc.rulesFile)
+			require.NoError(t, err)
+
+			graph, err := hclparse.ParseDir(tc.configDir)
+			require.NoError(t, err)
+
+			findings := Match(graph, rules)
+
+			// Collect all state operations from findings
+			var allStateOps []StateOp
+			for _, f := range findings {
+				if len(f.State) > 0 {
+					allStateOps = append(allStateOps, f.State...)
+				}
+			}
+
+			// Verify expected state operations
+			for _, expectedOp := range tc.expectedStateOps {
+				found := false
+				for _, actualOp := range allStateOps {
+					if actualOp.Op == expectedOp.Op && actualOp.Addr == expectedOp.Addr {
+						if expectedOp.Dest == "" || actualOp.Dest == expectedOp.Dest {
+							found = true
+							break
+						}
+					}
+				}
+				assert.True(t, found, "Expected state operation not found: %+v", expectedOp)
+			}
+		})
+	}
+	{{- else}}
+	t.Skip("No state operations defined for {{.Provider}} {{.FromVersion}} to {{.ToVersion}}")
+	{{- end}}
+}
+
+func Test{{.ProviderTitle}}_{{.FromVersion}}_to_{{.ToVersion}}_Performance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test in short mode")
+	}
+
+	// Load comprehensive rules pack
+	rules, err := rules.LoadFromFile("testdata/rules/{{.Provider}}/comprehensive.jsonl")
+	require.NoError(t, err)
+
+	// Parse a complex configuration
+	graph, err := hclparse.ParseDir("testdata/terraform/providers/{{.Provider}}/performance")
+	require.NoError(t, err)
+
+	// Benchmark the matching process
+	startTime := time.Now()
+	findings := Match(graph, rules)
+	duration := time.Since(startTime)
+
+	// Performance assertions
+	assert.Less(t, duration, 5*time.Second, "Matching should complete within 5 seconds")
+	assert.NotEmpty(t, findings, "Should produce findings")
+
+	t.Logf("{{.ProviderTitle}} {{.FromVersion}}→{{.ToVersion}} performance: %d findings in %v", len(findings), duration)
+}
+
+{{- if .CustomTests}}
+{{- range .CustomTests}}
+
+func Test{{$.ProviderTitle}}_{{.Name}}(t *testing.T) {
+	{{.Implementation}}
+}
+{{- end}}
+{{- end}}
