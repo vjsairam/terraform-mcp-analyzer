@@ -1,0 +1,21 @@
+{
+  "pack": {
+    "id": "sha256-deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdead",
+    "channel": "stable",
+    "schema_version": 1
+  },
+  "summary": {"total": 1, "errors": 1, "warnings": 0, "notes": 0},
+  "findings": [
+    {
+      "rule_id": "example.rule.id",
+      "rule_type": "provider_min_version",
+      "severity": "error",
+      "file": "main.tf",
+      "line": 1,
+      "col": 1,
+      "message": "Example finding",
+      "doc_url": "https://example.com/docs"
+    }
+  ]
+}
+

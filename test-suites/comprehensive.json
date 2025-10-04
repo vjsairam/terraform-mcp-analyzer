@@ -1,0 +1,297 @@
+{
+  "name": "TFUG Comprehensive Test Suite",
+  "description": "Complete test suite covering all major TFUG functionality including providers, modules, and output formats",
+  "setup": [
+    "go build -o ./bin/tfug ./cmd/tfug"
+  ],
+  "teardown": [
+    "rm -rf /tmp/tfug-test-*"
+  ],
+  "tests": [
+    {
+      "name": "basic_help_command",
+      "description": "Verify CLI help command works",
+      "command": ["./bin/tfug", "--help"],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["tfug", "Usage:", "scan", "verify"]
+      }
+    },
+    {
+      "name": "aws_provider_v4_to_v5_detection",
+      "description": "Test AWS provider upgrade detection from v4 to v5",
+      "command": [
+        "./bin/tfug", "scan", 
+        "--pack", "testdata/rules/multi-provider/comprehensive_upgrade_2024.jsonl",
+        "--format", "json",
+        "testdata/terraform/modules/comprehensive"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["findings", "tfug.aws"],
+        "json_path": [
+          {"path": "$.summary.total", "expected": 15, "type": "greater"}
+        ]
+      }
+    },
+    {
+      "name": "azure_provider_v2_to_v3_detection", 
+      "description": "Test Azure provider upgrade detection from v2 to v3",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "testdata/rules/multi-provider/comprehensive_upgrade_2024.jsonl", 
+        "--format", "table",
+        "testdata/terraform/providers/azure/v2_to_v3"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["SEVERITY", "RULE", "MESSAGE", "ERROR"]
+      }
+    },
+    {
+      "name": "gcp_provider_v4_to_v5_detection",
+      "description": "Test GCP provider upgrade detection from v4 to v5", 
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "testdata/rules/multi-provider/comprehensive_upgrade_2024.jsonl",
+        "--format", "md", 
+        "testdata/terraform/providers/gcp/v4_to_v5"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["## TFUG Findings", "google", "ERROR"]
+      }
+    },
+    {
+      "name": "sarif_output_format",
+      "description": "Test SARIF output format generation",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "rules_samples/aws_iam_v5_to_v6.jsonl",
+        "--format", "sarif",
+        "examples/terraform/iam-v5-to-v6-orig"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["$schema", "sarif-2.1.0", "runs", "results", "rules"]
+      }
+    },
+    {
+      "name": "fix_mode_patch_generation",
+      "description": "Test fix mode generates patches and state plans",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "rules_samples/aws_iam_v5_to_v6.jsonl", 
+        "--format", "md",
+        "--fix",
+        "--fix-out", "/tmp/tfug-test-patches",
+        "examples/terraform/iam-v5-to-v6-orig"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["TFUG Findings", "ERROR"]
+      },
+      "timeout": "30s"
+    },
+    {
+      "name": "verify_rules_pack_valid",
+      "description": "Test rules pack verification with valid pack",
+      "command": [
+        "./bin/tfug", "verify",
+        "--pack", "rules_samples/aws_iam_v5_to_v6.jsonl",
+        "--verbose"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["pack:", "rules:", "hash_ok: true"]
+      }
+    },
+    {
+      "name": "verify_rules_pack_signature",
+      "description": "Test rules pack signature verification (should warn about missing pubkey)",
+      "command": [
+        "./bin/tfug", "verify", 
+        "--pack", "rules_samples/aws_iam_v5_to_v6.jsonl"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_any": ["signature: present", "no --pubkey provided"]
+      }
+    },
+    {
+      "name": "comprehensive_multi_provider_scan",
+      "description": "Test comprehensive multi-provider scenario",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "testdata/rules/multi-provider/comprehensive_upgrade_2024.jsonl",
+        "--format", "json",
+        "testdata/terraform/modules/comprehensive"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["findings", "summary"],
+        "json_path": [
+          {"path": "$.summary.total", "expected": 10, "type": "greater"},
+          {"path": "$.pack.channel", "expected": "stable"}
+        ]
+      },
+      "timeout": "60s"
+    },
+    {
+      "name": "empty_directory_scan",
+      "description": "Test scanning empty directory (should not fail)",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "rules_samples/aws_iam_v5_to_v6.jsonl",
+        "--format", "json",
+        "/tmp"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["findings"],
+        "json_path": [
+          {"path": "$.summary.total", "expected": 0}
+        ]
+      }
+    },
+    {
+      "name": "invalid_terraform_directory",
+      "description": "Test scanning directory with invalid Terraform (should handle gracefully)",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "rules_samples/aws_iam_v5_to_v6.jsonl", 
+        "--format", "json",
+        "docs"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["findings"]
+      }
+    },
+    {
+      "name": "nonexistent_rules_pack",
+      "description": "Test handling of nonexistent rules pack",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "nonexistent.jsonl",
+        "--format", "json", 
+        "."
+      ],
+      "expected_exit": 3,
+      "expected_output": {
+        "contains_any": ["cannot", "open", "file", "not found"]
+      }
+    },
+    {
+      "name": "invalid_format_argument", 
+      "description": "Test handling of invalid format argument",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "rules_samples/aws_iam_v5_to_v6.jsonl",
+        "--format", "invalid",
+        "examples/terraform/iam-v5-to-v6-orig"
+      ],
+      "expected_exit": 1,
+      "expected_output": {
+        "contains_any": ["invalid", "format", "unknown"]
+      }
+    },
+    {
+      "name": "performance_large_config",
+      "description": "Test performance with comprehensive multi-provider config",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "testdata/rules/multi-provider/comprehensive_upgrade_2024.jsonl",
+        "--format", "json",
+        "testdata/terraform/modules/comprehensive"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["findings", "summary"]
+      },
+      "timeout": "120s"
+    },
+    {
+      "name": "rule_validator_basic",
+      "description": "Test rule validator tool on sample pack",
+      "command": [
+        "go", "run", "./tools/rule-validator", 
+        "-pack", "rules_samples/aws_iam_v5_to_v6.jsonl"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["Status:", "Rules:", "VALID"]
+      }
+    },
+    {
+      "name": "rule_validator_verbose",
+      "description": "Test rule validator with verbose output",
+      "command": [
+        "go", "run", "./tools/rule-validator",
+        "-pack", "rules_samples/aws_iam_v5_to_v6.jsonl", 
+        "-verbose"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["Statistics:", "Rule Types:", "Providers:"]
+      }
+    },
+    {
+      "name": "generator_help",
+      "description": "Test generator tool help",
+      "command": [
+        "go", "run", "./tools/generators",
+        "-list"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["Available Templates:", "provider", "module", "rules", "test"]
+      }
+    },
+    {
+      "name": "aws_iam_specific_findings",
+      "description": "Test specific AWS IAM findings match expected count",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "rules_samples/aws_iam_v5_to_v6.jsonl",
+        "--format", "json",
+        "examples/terraform/iam-v5-to-v6-orig"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "json_path": [
+          {"path": "$.summary.total", "expected": 7},
+          {"path": "$.summary.errors", "expected": 6},
+          {"path": "$.summary.notes", "expected": 1}
+        ]
+      }
+    },
+    {
+      "name": "aws_iam_migrated_fewer_findings",
+      "description": "Test migrated config has fewer findings",
+      "command": [
+        "./bin/tfug", "scan",
+        "--pack", "rules_samples/aws_iam_v5_to_v6.jsonl", 
+        "--format", "json",
+        "examples/terraform/iam-v5-to-v6"
+      ],
+      "expected_exit": 0,
+      "expected_output": {
+        "json_path": [
+          {"path": "$.summary.total", "expected": 3, "type": "less"}
+        ]
+      }
+    },
+    {
+      "name": "unit_test_suite",
+      "description": "Run Go unit test suite",
+      "command": ["go", "test", "./...", "-v", "-count=1"],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["PASS"],
+        "not_contains": ["FAIL"]
+      },
+      "timeout": "300s"
+    }
+  ]
+}

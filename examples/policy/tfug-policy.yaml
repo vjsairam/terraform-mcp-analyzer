@@ -1,0 +1,10 @@
+org:
+  name: "acme-inc"
+  allow_cross_major: false
+  fail_on: [provider_min_version, var_removed, state_move]
+  ignore_rules: [tfug.aws.trivial.doc_fix.*]
+modules:
+  - name: "terraform-aws-modules/iam/aws"
+    pin_major: 6
+    allow_rules: ["tfug.aws.iam.v5_to_v6.*"]
+
