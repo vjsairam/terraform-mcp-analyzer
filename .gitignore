@@ -1,0 +1,35 @@
+# Build artifacts
+bin/
+artifacts/
+coverage/
+
+# CLI runtime/outputs
+.terraform-mcp-analyzer/
+.terraform-mcp-analyzer-cache/
+## Backward-compat: ignore legacy dirs if present
+.tfug/
+.tfug-cache/
+rules-cache/
+docs_corpus/
+_to_review/
+
+# Scraper outputs
+*.sig
+*.bundle.json
+*.sha256
+
+# Go caches (local)
+.gocache/
+.gomodcache/
+.gopath/
+
+# OS/editor
+.DS_Store
+*.swp
+*.swo
+
+# Development/planning artifacts
+Project_Knowledge.txt
+Project_Instructions.txt
+AGENTS.md
+.claude/
