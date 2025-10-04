@@ -2,6 +2,7 @@
 bin/
 artifacts/
 coverage/
+terraform-mcp-analyzer
 
 # CLI runtime/outputs
 .terraform-mcp-analyzer/
