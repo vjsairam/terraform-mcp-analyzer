@@ -6,7 +6,7 @@ import (
     "os"
     "path/filepath"
 
-    "github.com/your-org/tfug/internal/hclparse"
+    "github.com/your-org/terraform-mcp-analyzer/internal/hclparse"
 )
 
 func main() {
