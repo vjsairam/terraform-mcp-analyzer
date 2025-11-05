@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -363,10 +365,239 @@ func validateOutput(output string, expected ExpectedOutput) bool {
 		}
 	}
 
-	// TODO: Implement JSON path and regex validations
-	// This would require additional libraries like jsonpath-ng equivalent
+	// Check Regex patterns
+	for _, pattern := range expected.Regex {
+		matched, err := regexp.MatchString(pattern, output)
+		if err != nil {
+			// Invalid regex pattern - fail the test
+			return false
+		}
+		if !matched {
+			return false
+		}
+	}
+
+	// Check JSON path assertions
+	if len(expected.JSONPath) > 0 {
+		// Try to parse output as JSON
+		var jsonData interface{}
+		if err := json.Unmarshal([]byte(output), &jsonData); err != nil {
+			// Output is not valid JSON - fail if JSON assertions were expected
+			return false
+		}
+
+		for _, assertion := range expected.JSONPath {
+			if !validateJSONPath(jsonData, assertion) {
+				return false
+			}
+		}
+	}
 
 	return true
+}
+
+// validateJSONPath validates a single JSON path assertion against parsed JSON data
+func validateJSONPath(data interface{}, assertion JSONAssert) bool {
+	value, found := navigateJSONPath(data, assertion.Path)
+	if !found {
+		return false
+	}
+
+	// Default assertion type is "equals"
+	assertionType := assertion.Type
+	if assertionType == "" {
+		assertionType = "equals"
+	}
+
+	return compareJSONValues(value, assertion.Expected, assertionType)
+}
+
+// navigateJSONPath navigates through JSON structure using a path string
+// Supports paths like: "field", "field.subfield", "array[0]", "field[0].subfield"
+func navigateJSONPath(data interface{}, path string) (interface{}, bool) {
+	if path == "" {
+		return data, true
+	}
+
+	current := data
+	remaining := path
+
+	for remaining != "" {
+		// Check for array index notation: field[index]
+		if idx := strings.Index(remaining, "["); idx != -1 {
+			// Get the field name before the bracket
+			fieldName := remaining[:idx]
+			if fieldName != "" {
+				// Navigate to the field
+				if m, ok := current.(map[string]interface{}); ok {
+					var found bool
+					current, found = m[fieldName]
+					if !found {
+						return nil, false
+					}
+				} else {
+					return nil, false
+				}
+			}
+
+			// Parse the array index
+			endIdx := strings.Index(remaining, "]")
+			if endIdx == -1 {
+				return nil, false // malformed path
+			}
+			indexStr := remaining[idx+1 : endIdx]
+			index, err := strconv.Atoi(indexStr)
+			if err != nil {
+				return nil, false
+			}
+
+			// Navigate into the array
+			if arr, ok := current.([]interface{}); ok {
+				if index < 0 || index >= len(arr) {
+					return nil, false
+				}
+				current = arr[index]
+			} else {
+				return nil, false
+			}
+
+			// Move past the closing bracket
+			remaining = remaining[endIdx+1:]
+			// Skip the dot separator if present
+			if strings.HasPrefix(remaining, ".") {
+				remaining = remaining[1:]
+			}
+		} else {
+			// No array notation, just field navigation
+			// Find the next dot or end of string
+			dotIdx := strings.Index(remaining, ".")
+			var fieldName string
+			if dotIdx == -1 {
+				fieldName = remaining
+				remaining = ""
+			} else {
+				fieldName = remaining[:dotIdx]
+				remaining = remaining[dotIdx+1:]
+			}
+
+			// Navigate to the field
+			if m, ok := current.(map[string]interface{}); ok {
+				var found bool
+				current, found = m[fieldName]
+				if !found {
+					return nil, false
+				}
+			} else {
+				return nil, false
+			}
+		}
+	}
+
+	return current, true
+}
+
+// compareJSONValues compares two values based on the assertion type
+func compareJSONValues(actual, expected interface{}, assertionType string) bool {
+	switch assertionType {
+	case "equals":
+		return compareEquals(actual, expected)
+	case "greater":
+		return compareGreater(actual, expected)
+	case "less":
+		return compareLess(actual, expected)
+	case "contains":
+		return compareContains(actual, expected)
+	default:
+		// Unknown assertion type - default to equals
+		return compareEquals(actual, expected)
+	}
+}
+
+func compareEquals(actual, expected interface{}) bool {
+	// Handle numeric comparisons (JSON numbers can be float64)
+	if actualNum, ok := actual.(float64); ok {
+		if expectedNum, ok := expected.(float64); ok {
+			return actualNum == expectedNum
+		}
+		// Try converting expected to float
+		if expectedStr, ok := expected.(string); ok {
+			if expectedNum, err := strconv.ParseFloat(expectedStr, 64); err == nil {
+				return actualNum == expectedNum
+			}
+		}
+	}
+
+	// Handle string comparisons
+	if actualStr, ok := actual.(string); ok {
+		if expectedStr, ok := expected.(string); ok {
+			return actualStr == expectedStr
+		}
+	}
+
+	// Handle boolean comparisons
+	if actualBool, ok := actual.(bool); ok {
+		if expectedBool, ok := expected.(bool); ok {
+			return actualBool == expectedBool
+		}
+	}
+
+	// Fallback to string representation comparison
+	return fmt.Sprintf("%v", actual) == fmt.Sprintf("%v", expected)
+}
+
+func compareGreater(actual, expected interface{}) bool {
+	actualNum, actualOk := toFloat64(actual)
+	expectedNum, expectedOk := toFloat64(expected)
+	if actualOk && expectedOk {
+		return actualNum > expectedNum
+	}
+	return false
+}
+
+func compareLess(actual, expected interface{}) bool {
+	actualNum, actualOk := toFloat64(actual)
+	expectedNum, expectedOk := toFloat64(expected)
+	if actualOk && expectedOk {
+		return actualNum < expectedNum
+	}
+	return false
+}
+
+func compareContains(actual, expected interface{}) bool {
+	// Check if actual array contains expected value
+	if arr, ok := actual.([]interface{}); ok {
+		for _, item := range arr {
+			if compareEquals(item, expected) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Check if actual string contains expected substring
+	if actualStr, ok := actual.(string); ok {
+		if expectedStr, ok := expected.(string); ok {
+			return strings.Contains(actualStr, expectedStr)
+		}
+	}
+
+	return false
+}
+
+func toFloat64(v interface{}) (float64, bool) {
+	switch val := v.(type) {
+	case float64:
+		return val, true
+	case int:
+		return float64(val), true
+	case int64:
+		return float64(val), true
+	case string:
+		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			return f, true
+		}
+	}
+	return 0, false
 }
 
 func runCommand(cmdStr string, workDir string, timeout time.Duration) error {
