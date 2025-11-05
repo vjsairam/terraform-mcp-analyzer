@@ -3,6 +3,8 @@ bin/
 artifacts/
 coverage/
 terraform-mcp-analyzer
+tools/test-runner/test-runner
+test-results/
 
 # CLI runtime/outputs
 .terraform-mcp-analyzer/
