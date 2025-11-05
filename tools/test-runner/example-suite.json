@@ -1,0 +1,134 @@
+{
+  "name": "Test Runner Feature Examples",
+  "description": "Demonstrates regex and JSON path validation features",
+  "tests": [
+    {
+      "name": "regex_basic_match",
+      "description": "Test basic regex pattern matching",
+      "command": ["echo", "Finding: rule-001 detected at line 42"],
+      "expected_exit": 0,
+      "expected_output": {
+        "regex": [
+          "rule-\\d{3}",
+          "line \\d+"
+        ]
+      }
+    },
+    {
+      "name": "json_simple_field",
+      "description": "Test simple JSON field validation",
+      "command": ["echo", "{\"status\": \"success\", \"count\": 5}"],
+      "expected_exit": 0,
+      "expected_output": {
+        "json_path": [
+          {
+            "path": "status",
+            "expected": "success",
+            "type": "equals"
+          },
+          {
+            "path": "count",
+            "expected": 5,
+            "type": "equals"
+          }
+        ]
+      }
+    },
+    {
+      "name": "json_nested_field",
+      "description": "Test nested JSON field validation",
+      "command": ["echo", "{\"data\": {\"provider\": \"aws\", \"version\": \"5.0\"}}"],
+      "expected_exit": 0,
+      "expected_output": {
+        "json_path": [
+          {
+            "path": "data.provider",
+            "expected": "aws",
+            "type": "equals"
+          },
+          {
+            "path": "data.version",
+            "expected": "5.0",
+            "type": "equals"
+          }
+        ]
+      }
+    },
+    {
+      "name": "json_array_index",
+      "description": "Test array index validation",
+      "command": ["echo", "{\"findings\": [{\"id\": \"rule-001\", \"severity\": \"high\"}, {\"id\": \"rule-002\", \"severity\": \"low\"}]}"],
+      "expected_exit": 0,
+      "expected_output": {
+        "json_path": [
+          {
+            "path": "findings[0].id",
+            "expected": "rule-001",
+            "type": "equals"
+          },
+          {
+            "path": "findings[1].severity",
+            "expected": "low",
+            "type": "equals"
+          }
+        ]
+      }
+    },
+    {
+      "name": "json_numeric_comparison",
+      "description": "Test numeric comparison with greater/less",
+      "command": ["echo", "{\"findings_count\": 10, \"errors\": 2}"],
+      "expected_exit": 0,
+      "expected_output": {
+        "json_path": [
+          {
+            "path": "findings_count",
+            "expected": 5,
+            "type": "greater"
+          },
+          {
+            "path": "errors",
+            "expected": 5,
+            "type": "less"
+          }
+        ]
+      }
+    },
+    {
+      "name": "json_array_contains",
+      "description": "Test array contains validation",
+      "command": ["echo", "{\"providers\": [\"aws\", \"azure\", \"gcp\"]}"],
+      "expected_exit": 0,
+      "expected_output": {
+        "json_path": [
+          {
+            "path": "providers",
+            "expected": "aws",
+            "type": "contains"
+          }
+        ]
+      }
+    },
+    {
+      "name": "combined_validations",
+      "description": "Test combining multiple validation types",
+      "command": ["echo", "{\"status\": \"SUCCESS\", \"message\": \"Scan completed with 5 findings\", \"count\": 5}"],
+      "expected_exit": 0,
+      "expected_output": {
+        "contains_all": ["SUCCESS", "completed"],
+        "regex": ["\\d+ findings"],
+        "json_path": [
+          {
+            "path": "status",
+            "expected": "SUCCESS"
+          },
+          {
+            "path": "count",
+            "expected": 0,
+            "type": "greater"
+          }
+        ]
+      }
+    }
+  ]
+}
