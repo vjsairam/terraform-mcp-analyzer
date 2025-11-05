@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/your-org/tfug/internal/codemod"
-	"github.com/your-org/tfug/internal/hclparse"
-	"github.com/your-org/tfug/internal/rules"
+	"github.com/your-org/terraform-mcp-analyzer/internal/codemod"
+	"github.com/your-org/terraform-mcp-analyzer/internal/hclparse"
+	"github.com/your-org/terraform-mcp-analyzer/internal/rules"
 )
 
 func Test{{.ProviderTitle}}_{{.FromVersion}}_to_{{.ToVersion}}_Detection(t *testing.T) {
