@@ -2,7 +2,7 @@ module github.com/your-org/terraform-mcp-analyzer
 
 go 1.23.0
 
-toolchain go1.24.7
+toolchain go1.23.4
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1

@@ -13,7 +13,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.x'
+          go-version: '1.23.x'
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
@@ -26,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.x'
+          go-version: '1.23.x'
       - name: Build
         run: go build ./cmd/terraform-mcp-analyzer
       - name: Test
@@ -51,7 +51,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.x'
+          go-version: '1.23.x'
       - name: Build terraform-mcp-analyzer
         run: |
           go build -o ./bin/terraform-mcp-analyzer ./cmd/terraform-mcp-analyzer
