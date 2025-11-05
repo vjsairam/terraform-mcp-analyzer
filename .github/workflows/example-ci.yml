@@ -23,12 +23,12 @@ jobs:
       - name: Rename SARIF
         run: |
           mv terraform-mcp-analyzer.sarif terraform-mcp-analyzer.sarif || true
-    - name: Upload SARIF to code scanning
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: terraform-mcp-analyzer.sarif
-    - name: Upload SARIF
-      uses: actions/upload-artifact@v4
-      with:
-        name: terraform-mcp-analyzer-sarif
-        path: terraform-mcp-analyzer.sarif
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: terraform-mcp-analyzer.sarif
+      - name: Upload SARIF
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-mcp-analyzer-sarif
+          path: terraform-mcp-analyzer.sarif
