@@ -35,7 +35,6 @@ _to_review/
 Project_Knowledge.txt
 Project_Instructions.txt
 AGENTS.md
-.claude/
 
 # Large scraped documentation (optional)
 docs/terraform/modules/
